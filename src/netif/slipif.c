@@ -87,6 +87,8 @@
 #define SLIP_SIO_SPEED(sio_fd) 0
 #endif
 
+#define ISO15118DRIVER 1
+
 enum slipif_recv_state {
   SLIP_RECV_NORMAL,
   SLIP_RECV_ESCAPE
@@ -129,8 +131,19 @@ slipif_output(struct netif *netif, struct pbuf *p)
 
   /* Send pbuf out on the serial I/O device. */
   /* Start with packet delimiter. */
-  sio_send(SLIP_END, priv->sd);
 
+    #ifdef ISO15118DRIVER
+
+    u8_t iso15118OutBuff[p->len+1];
+    for (q = p; q != NULL; q = q->next) {
+        for (i = 0; i < q->len; i++) {
+            iso15118OutBuff[i] = ((u8_t *)q->payload)[i];
+        }
+        iso15118OutBuff[q->len] =SLIP_END;
+        sio_write(priv->sd,&iso15118OutBuff,sizeof (iso15118OutBuff));
+    }
+    #else
+        sio_send(SLIP_END, priv->sd);
   for (q = p; q != NULL; q = q->next) {
     for (i = 0; i < q->len; i++) {
       c = ((u8_t *)q->payload)[i];
@@ -154,6 +167,7 @@ slipif_output(struct netif *netif, struct pbuf *p)
   }
   /* End with packet delimiter. */
   sio_send(SLIP_END, priv->sd);
+    #endif
   return ERR_OK;
 }
 
